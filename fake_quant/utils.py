@@ -73,7 +73,9 @@ def parser_gen():
 
     # General Arguments
     parser.add_argument('--model', type=str, default='meta-llama/Llama-2-7b-hf',
-                        help='Model to load;', choices=supported_models)
+                        help='Model to load;')
+    parser.add_argument('--rotated_model', type=str, default='./',
+                        help='Dir to save rotated model;')
     parser.add_argument('--seed', type=int, default=0, help='Random Seed for HuggingFace and PyTorch')
     parser.add_argument('--eval_dataset', type=str, default='wikitext2',
                         help='Dataset for Evaluation (default: wikitext2)', choices=supported_datasets,)
@@ -198,13 +200,15 @@ def parser_gen():
                 raise ValueError(f"Invalid task: {task}")
 
     # quant_type = f'w{args.w_bits}a{args.a_bits}_{args.rotate_mode}'
-    if args.save_name is None:
-        args.save_name = datetime.now().strftime("%Y%m%d_%H%M%S")
-    setattr(args, 'save_path',
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'experiments', args.model, args.save_name))
-    os.makedirs(args.save_path, exist_ok=True)
 
-    config_logging(os.path.join(args.save_path, f'{args.save_name}.log'))
+    # 屏蔽掉保存的部分，在中间过程中自行保存
+    # if args.save_name is None:
+    #     args.save_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # setattr(args, 'save_path',
+    #         os.path.join(os.path.dirname(os.path.abspath(__file__)), 'experiments', args.model, args.save_name))
+    # os.makedirs(args.save_path, exist_ok=True)
+
+    # config_logging(os.path.join(args.save_path, f'{args.save_name}.log'))
     
     assert args.a_groupsize == args.w_groupsize, 'a_groupsize should be the same as w_groupsize!'
     assert args.k_pre_rope == False, 'Pre-RoPE quantization is not supported yet!'

@@ -25,6 +25,9 @@ def main():
     if args.rotate:
         rotation_utils.fuse_layer_norms(model)
         rotation_utils.rotate_model(model, args)
+        model.save_pretrained(args.rotated_model)
+        exit(0)
+
         utils.cleanup_memory(verbos=True)
             
         quant_utils.add_actquant(model) #Add Activation Wrapper to the model
@@ -149,7 +152,7 @@ def main():
 
         
     
-    if args.distribute_model:
+    if args.distribute:
         utils.distribute_model(model)
     else:
         model.to(utils.DEV)

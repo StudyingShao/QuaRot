@@ -24,7 +24,10 @@ def fuse_ln_linear(layernorm: torch.nn.Module, linear_layers: typing.Iterable[to
                 linear.bias = torch.nn.Parameter(torch.zeros(linear.out_features, dtype=torch.float64))
             linear.bias.data = linear.bias.data.double() + torch.matmul(W_, layernorm.bias.double())
             linear.bias.data = linear.bias.data.to(linear_dtype)
-            
+
+    # 由于将 RMSNorm 的 scale 融合进了后续的 weight 中，因此这里需要将 RMSNorm 原本的 scale 置 1
+    layernorm.weight.data = torch.ones(layernorm.weight.data.shape)
+
 def bake_mean_into_linear(linear: torch.nn.Linear) -> None:
     """
     This function takes a linear layer and subtracts the means from the
@@ -77,12 +80,12 @@ def fuse_layer_norms(model):
     
     fuse_ln_linear(model_utils.get_pre_head_layernorm(**kwargs), [model_utils.get_lm_head(**kwargs)])
     
-    model_utils.replace_modules(
-        model,
-        transformers.models.llama.modeling_llama.LlamaRMSNorm if model_type == model_utils.LLAMA_MODEL else torch.nn.LayerNorm,
-        lambda _: model_utils.RMSN(model.config.hidden_size),
-        replace_layers=False,
-    )
+    # model_utils.replace_modules(
+    #     model,
+    #     transformers.models.llama.modeling_llama.LlamaRMSNorm if model_type == model_utils.LLAMA_MODEL else torch.nn.LayerNorm,
+    #     lambda _: model_utils.RMSN(model.config.hidden_size),
+    #     replace_layers=False,
+    # )
     
 
 def random_orthogonal_matrix(size, device):
@@ -170,7 +173,7 @@ def rotate_mlp_output(layer, Q, model_type):
     dtype = W.weight.data.dtype
     W_ = W.weight.data.to(device=utils.DEV, dtype=torch.float64)
     W.weight.data = torch.matmul(Q.T, W_).to(device="cpu", dtype=dtype)
-    apply_exact_had_to_linear(W, had_dim=-1, output=False) #apply exact (inverse) hadamard on the weights of mlp output
+    # apply_exact_had_to_linear(W, had_dim=-1, output=False) #apply exact (inverse) hadamard on the weights of mlp output
     if W.bias is not None:
         b = W.bias.data.to(device=utils.DEV, dtype=torch.float64)
         W.bias.data = torch.matmul(Q.T, b).to(device="cpu", dtype=dtype)
@@ -247,7 +250,7 @@ def rotate_model(model, args):
         rotate_attention_output(layers[idx], Q, model_type)
         rotate_mlp_input(layers[idx], Q, model_type)
         rotate_mlp_output(layers[idx], Q, model_type)
-        rotate_ov_proj(layers[idx], model_type, num_heads, head_dim)
+        # rotate_ov_proj(layers[idx], model_type, num_heads, head_dim)
 
 
 @torch.inference_mode
